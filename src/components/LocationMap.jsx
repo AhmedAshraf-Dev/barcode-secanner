@@ -23,7 +23,11 @@ L.Icon.Default.mergeOptions({
   iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-png",
   shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
-
+const currentLocationIcon = L.divIcon({
+  className: "custom-current-location",
+  html: `<div class="blue-dot"></div>`,
+  iconSize: [20, 20],
+});
 const LocationMap = () => {
   const { localization } = useContext(LanguageContext);
   const [showGlobe, setShowGlobe] = useState(true);
@@ -32,7 +36,11 @@ const LocationMap = () => {
   // URL PARAMS (Existing logic)
   const searchParams = new URLSearchParams(window.location.search);
   const location = JSON.parse(searchParams.get("location") || "{}");
+  const locations = JSON.parse(searchParams.get("locations") || "[]");
   const fields = JSON.parse(searchParams.get("fields") || "[]");
+  const locationsFields = JSON.parse(
+    searchParams.get("locationsFields") || "[]",
+  );
   const clickable = searchParams.get("clickable") === "true";
   const haveRadius = searchParams.get("haveRadius") === "true";
   const findServerContainer = searchParams.get("findServerContainer")
@@ -40,15 +48,11 @@ const LocationMap = () => {
     : null;
   const clickAction = searchParams.get("clickAction") || "pin";
 
-  const latitudeField = fields.find(
-    (p) =>
-      p.parameterType ===
-      (haveRadius ? "areaMapLatitudePoint" : "mapLatitudePoint"),
+  const latitudeField = fields.find((p) =>
+    p.parameterType?.includes("atitude"),
   )?.parameterField;
-  const longitudeField = fields.find(
-    (p) =>
-      p.parameterType ===
-      (haveRadius ? "areaMapLongitudePoint" : "mapLongitudePoint"),
+  const longitudeField = fields.find((p) =>
+    p.parameterType?.includes("ongitude"),
   )?.parameterField;
   const radiusField = haveRadius
     ? fields.find((p) => p.parameterType === "areaMapRadius")?.parameterField
@@ -57,6 +61,55 @@ const LocationMap = () => {
   const [radius, setRadius] = useState(location[radiusField] || 100);
   const [lat, setLat] = useState(+location[latitudeField] || 30.0444); // Cairo default
   const [lng, setLng] = useState(+location[longitudeField] || 31.2357);
+  // co
+  // useEffect(() => {
+  //   if (location && Object.keys(location).length > 0) {
+  //     setLocationsState([...locations, location]);
+  //   }
+  // }, [location]);
+  const latitudeLocationField = locationsFields.find((p) =>
+    p.parameterType?.includes("atitude"),
+  )?.parameterField;
+  const longitudeLocationField = locationsFields.find((p) =>
+    p.parameterType?.includes("ongitude"),
+  )?.parameterField;
+  const radiusLocationField = haveRadius
+    ? locationsFields.find((p) => p.parameterType === "areaMapRadius")
+        ?.parameterField
+    : null;
+  console.log("====================================");
+  console.log(locationsFields, latitudeLocationField, "latitudeLocationField");
+  console.log("====================================");
+  const RenderLocation = ({
+    location,
+    radiusField,
+    latitudeField,
+    longitudeField,
+    isCurrentLocation = false,
+  }) => {
+    const radius = location[radiusField] || 100;
+    const lat = +location[latitudeField] || 30.0444;
+    const lng = +location[longitudeField] || 31.2357;
+    return (
+      <>
+        <Marker
+          icon={isCurrentLocation && currentLocationIcon}
+          position={[lat, lng]}
+        >
+          <Popup>{localization.inputs.locationMap.popupTitle}</Popup>
+        </Marker>
+        {radiusField && (
+          <Circle
+            center={[lat, lng]}
+            radius={radius}
+            color="var(--main-color2)"
+            fillColor="var(--main-color2)"
+            fillOpacity={0.2}
+          />
+        )}
+      </>
+    );
+  };
 
   // -------------------------
   // Intro Logic: Switch from Globe to Map
@@ -166,21 +219,25 @@ const LocationMap = () => {
                   // setNewPolygon={setNewPolygon}
                 />
               )}
-              {location && (
-                <>
-                  <Marker position={[lat, lng]}>
-                    <Popup>{localization.inputs.locationMap.popupTitle}</Popup>
-                  </Marker>
-                  {radiusField && (
-                    <Circle
-                      center={[lat, lng]}
-                      radius={radius}
-                      color="var(--main-color2)"
-                      fillColor="var(--main-color2)"
-                      fillOpacity={0.2}
+              {locations &&
+                locations.map((location) => {
+                  return (
+                    <RenderLocation
+                      location={location}
+                      latitudeField={latitudeLocationField}
+                      longitudeField={longitudeLocationField}
+                      radiusField={radiusLocationField}
                     />
-                  )}
-                </>
+                  );
+                })}
+              {location && (
+                <RenderLocation
+                  latitudeField={latitudeField}
+                  longitudeField={longitudeField}
+                  radiusField={radiusField}
+                  location={location}
+                  isCurrentLocation={true}
+                />
               )}
             </MapContainer>
 
